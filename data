@@ -1,0 +1,17 @@
+enemy_states:{0, 0, 0, 0, 0, 0}
+block_collision:255
+player_vertical_velocity:0
+enemies_x:{96, 96, 96, 96, 96}
+player_y_level:176
+player_x_level:0
+power_up_state:0
+timer:4
+player_y_screen:176
+player_vertical_speed:0
+scroll_amount:1
+player_state:8
+enemies_y:{1, 1, 1, 1, 1}
+player_x_screen:147
+player_horizontal_speed:28
+player_float_state:0
+player_lives:2
