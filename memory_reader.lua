@@ -50,8 +50,13 @@ function read_info()
             read_from_cpu(0x0023)
         },
 
-        scroll_amount = read_from_cpu(0x0775),
-        timer = read_from_cpu(0x07F8)
+        timer = read_from_cpu(0x07F8) * 100 + read_from_cpu(0x07F9) * 10 + read_from_cpu(0x07FA),
+        
+        level = read_from_cpu(0x0760),
+        world = read_from_cpu(0x075F)
+        
+        
+        
     }
     
     local output = ""
@@ -66,7 +71,7 @@ function read_info()
     if mmap_file then
         mmap_file:write(output)
         mmap_file:flush()
-        mmap_file:close()
+        mmap_file:close()  -- Closing ensures data is written
     else
         print("Error: Could not open file for writing")
     end
@@ -75,5 +80,11 @@ end
 function read_from_cpu(address)
     return emu.read(address, emu.memType.cpu, false)
 end
+  
+function input()
+  emu.setInput(0,{right = true})
+end
 
-emu.addEventCallback(read_info, emu.eventType.endFrame)
+  
+
+emu.addEventCallback(read_info, emu.eventType.startFrame)
