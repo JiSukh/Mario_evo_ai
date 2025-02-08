@@ -1,7 +1,9 @@
 import mmap
-import numpy
+import os
+import time
 
-SHARED_MEMORY_FILE = "C:\\Users\\jsukh\\Documents\\Mario_evo_ai\\data"
+MESEN_PATH = os.path.join(os.getenv("USERPROFILE"), "Documents", "Mesen")
+SHARED_MEMORY_FILE = os.path.join(MESEN_PATH, "data")
 
 def parse_value(value):
     """Convert string value into int or list of ints if formatted as {1, 2, 3}."""
@@ -16,21 +18,40 @@ score_key = [
 
 class emu_read():
     def read_game_memory():
-        with open(SHARED_MEMORY_FILE, "r+b") as f:
-            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-            mm.seek(0)
-            data = mm.read().decode().strip()
-            if data:
+        try:
+            with open(SHARED_MEMORY_FILE, "r+b") as f:
+                if os.path.getsize(SHARED_MEMORY_FILE) == 0:
+                    return {}, {}  # Return empty if file is empty
+
+                mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
+                mm.seek(0)
+                data = mm.read().decode().strip()
+
+                if not data:
+                    mm.close()
+                    return {}, {}
+
                 game_data = {}
                 score = {}
-                #str to dict
+
                 for line in data.split("\n"):
-                    key, value = line.split(":")
-                    if key in score_key:
-                        score[key] = parse_value(value)
-                    else:
-                        game_data[key] = parse_value(value)  # Convert values properly
-                return game_data,score
+                    try:
+                        key, value = line.split(":")
+                        if key in score_key:
+                            score[key] = parse_value(value)
+                        else:
+                            game_data[key] = parse_value(value)
+                    except ValueError:
+                        print(f"Skipping invalid line: {line}")
+
+                mm.close()
+                return game_data, score
+
+        except (FileNotFoundError, ValueError, OSError) as e:
+            print(f"Error reading memory file: {e}")
+            return {}, {}
+                
+
 
     def normalise_data(data):
         normalised_data = []
@@ -43,3 +64,5 @@ class emu_read():
                 normalised_data.append(value/255)
 
         return normalised_data
+    
+    

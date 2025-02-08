@@ -67,7 +67,9 @@ function read_info()
             output = output .. key .. ":" .. tostring(value) .. "\n"
         end
     end
-    local mmap_file = io.open("C:\\Users\\jsukh\\Documents\\Mario_evo_ai\\data", "w")
+        
+        
+    local mmap_file = io.open("data", "w")
     if mmap_file then
         mmap_file:write(output)
         mmap_file:flush()
@@ -81,10 +83,6 @@ function read_from_cpu(address)
     return emu.read(address, emu.memType.cpu, false)
 end
   
-function input()
-  emu.setInput(0,{right = true})
-end
-
   
 
 emu.addEventCallback(read_info, emu.eventType.startFrame)
