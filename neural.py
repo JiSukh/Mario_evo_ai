@@ -4,47 +4,97 @@ import torch.nn as nn
 from emu_data_reader import emu_read as er
 import random
 import subprocess
+import threading
+import time
 
 
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.layer1 = nn.Linear(3, 64)
-        self.layer2 = nn.Linear(64, 13)
-        self.activation = nn.ReLU()
+        self.layer1 = nn.Linear(75, 64)
+        self.layer2 = nn.Linear(64, 64)
+        self.output_layer = nn.Linear(64, 3)
+        self.activation = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.activation(self.layer1(x))
-        x = self.layer2(x)
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
+        x = self.output_layer(x)
+        x = self.activation(x)
         return x
 
-
+def run_game():
+    # Run Mesen as a subprocess in a separate thread
+    command = ["Mesen.exe", "--testrunner", "game\Super Mario Bros (E).nes", "memory_reader.lua", "--emulation.emulationSpeed=5000"]
+    subprocess.run(command,)
         
 def initialise_population(size):
     population = []
-    for i in size:
+    for i in range(size):
         network = NeuralNetwork()
-        #randomise
+
         for param in network.parameters():
-            param.data = torch.randn_like(param.data)
-
+            if len(param.shape) > 1:  # Weight matrices, not biases
+                nn.init.xavier_normal_(param)
+            else:
+                param.data = torch.randn_like(param.data)
         population.append(network)
-
     return population
 
+
+
 def fitness_function(network):
-    fitness = 0
-
-    command = ["Mesen.exe", "--testrunner", "game\Super Mario Bros (E).nes", "memory_reader.lua"]
+    #"timer", "player_x_screen", "level", "world", "player_lives"
     
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error: {e.stderr}")
+    timer_w = 0
+    pos_bias = 1.5
+    level_bias = 3
+    world_bias = 10
+    
+    score = {}
+    fitness = 0
+    
+    last_x_pos = None 
+    last_movement_time = time.time()  
+    game_thread = threading.Thread(target=run_game)
+    game_thread.start()
+    
+    while game_thread.is_alive():
+        game_data,score = er.read_game_memory()
+        if game_data:
+            normalised_data = er.normalise_data(game_data)
+            in_tensor = torch.FloatTensor(normalised_data)
+            outputs = network(in_tensor)
+            er.write_inputs(outputs)
+            
+            
+            fitness = (timer_w*score['timer']) + (pos_bias*score['player_x_level']) + (level_bias*score['level']) + (world_bias*score['world'])
+            
 
-        
-    return fitness
+            
+            current_x_pos = score['player_x_level']
+            if last_x_pos is None or current_x_pos <= last_x_pos:
+                last_movement_time = time.time()  # Update based on in-game timer
+                last_x_pos = current_x_pos
+
+            # Penalty if player stuck
+            if time.time() - last_movement_time > 1:  # Adjust threshold if needed
+                fitness -= 500 
+                break         
+
+            
+        time.sleep(0.02)
+    if score:
+        if score["player_lives"] < 2:
+            fitness -= 500
+            
+        print(f"Fitness: {fitness/20} - Position: {score['player_x_level']}")
+    return fitness/20
+
+
+
+
 
 def crossover(parents):
     parent1, parent2 = parents
@@ -54,18 +104,25 @@ def crossover(parents):
     return child
 
 
-def mutate(child, mutation_rate=0.01):
+def mutate(child, mutation_rate=0.1):
     for param in child.parameters():
         if random.random() < mutation_rate:
             param.data += torch.randn_like(param.data) * 0.1
 
+
+
 def select_parents(population, fitness_scores, num_parents):
-    parents = random.choices(population, weights=fitness_scores, k=num_parents)
+    parents = []
+    for _ in range(num_parents):
+        tournament = random.sample(list(zip(population, fitness_scores)), 10)  # Sample 5 networks
+        tournament.sort(key=lambda x: x[1], reverse=True)  # Sort by fitness
+        parents.append(tournament[0][0])  # Select the best
     return parents
 
 
-def evolve(population, num_generations, num_parents, mutation_rate=0.01):
+def evolve(population, num_generations, num_parents, mutation_rate=0.1):
     for generation in range(num_generations):
+        print(f"New generation: {generation}")
         fitness_scores = [fitness_function(network) for network in population]
 
         parents = select_parents(population, fitness_scores, num_parents)
@@ -83,15 +140,20 @@ def evolve(population, num_generations, num_parents, mutation_rate=0.01):
         
         best_fitness = max(fitness_scores)
 
-    return population, best_fitness
+    return population, best_fitness, fitness_scores
 
 
 
 population_size = 50
 num_generations = 100
-num_parents = 10
+num_parents = 20
 
 population = initialise_population(population_size)
-evolved_population, best_fitness = evolve(population, num_generations, num_parents)
+evolved_population, best_fitness, fitness_scores = evolve(population, num_generations, num_parents)
 
-print(best_fitness)
+best_network_index = None
+for i in range(len(fitness_scores)):
+   if fitness_scores[i] == best_fitness:
+       torch.save(evolved_population[i], "nn.pth")
+
+##run game
