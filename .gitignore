@@ -172,7 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
+.conda/
 data.*
 game/
 Mesen.exe

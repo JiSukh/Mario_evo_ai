@@ -80,9 +80,31 @@ function read_info()
 end
 
 function read_from_cpu(address)
-    return emu.read(address, emu.memType.cpu, false)
+    return emu.read(address, emu.memType.nesMemory, false)
 end
-  
-  
 
+
+function wait_for_title_screen()
+	x = emu.read(0x0772,emu.memType.nesMemory, false)
+	if x == 0x03 then
+		emu.write(0x0770, 0x01, emu.memType.nesMemory)
+
+		emu.removeEventCallback(0,emu.eventType.inputPolled)
+		emu.addEventCallback(check_dead, emu.eventType.startFrame)
+	end
+end
+
+function check_dead()
+	x = emu.read(0x075A,emu.memType.nesMemory, false)
+	
+	if x < 0x02 then
+		emu.stop(0)
+	end
+end
+
+
+emu.addEventCallback(wait_for_title_screen, emu.eventType.inputPolled)
 emu.addEventCallback(read_info, emu.eventType.startFrame)
+
+
+

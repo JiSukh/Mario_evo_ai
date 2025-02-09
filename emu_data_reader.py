@@ -2,7 +2,7 @@ import mmap
 import os
 import time
 
-MESEN_PATH = os.path.join(os.getenv("USERPROFILE"), "Documents", "Mesen")
+MESEN_PATH = os.path.join(os.getenv("USERPROFILE"), "Documents", "Mesen2")
 SHARED_MEMORY_FILE = os.path.join(MESEN_PATH, "data")
 
 def parse_value(value):

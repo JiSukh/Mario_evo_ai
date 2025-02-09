@@ -6,8 +6,6 @@ import random
 import subprocess
 
 
-    
-
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -36,17 +34,16 @@ def initialise_population(size):
     return population
 
 def fitness_function(network):
+    fitness = 0
+
+    command = ["Mesen.exe", "--testrunner", "game\Super Mario Bros (E).nes", "memory_reader.lua"]
     
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.stderr}")
 
-    timer_w = 1
-    world_w = 5
-    level_w = 3
-    x_pos_w = 1
-    lives_w = 10
-
-    fitness = (score[0] * timer_w) + (score[1] * world_w) + (score[2] * level_w) + (score[3] * x_pos_w) * (score[4] * lives_w)
-
-    fitness = fitness / 4
+        
     return fitness
 
 def crossover(parents):
@@ -69,7 +66,6 @@ def select_parents(population, fitness_scores, num_parents):
 
 def evolve(population, num_generations, num_parents, mutation_rate=0.01):
     for generation in range(num_generations):
-        # Evaluate fitness
         fitness_scores = [fitness_function(network) for network in population]
 
         parents = select_parents(population, fitness_scores, num_parents)
@@ -84,10 +80,10 @@ def evolve(population, num_generations, num_parents, mutation_rate=0.01):
             mutate(child, mutation_rate)
             next_generation.append(child)
         population = next_generation
-        # Optionally, print the best fitness score of the generation
+        
         best_fitness = max(fitness_scores)
 
-    return population
+    return population, best_fitness
 
 
 
@@ -96,4 +92,6 @@ num_generations = 100
 num_parents = 10
 
 population = initialise_population(population_size)
-evolved_population = evolve(population, num_generations, num_parents)
+evolved_population, best_fitness = evolve(population, num_generations, num_parents)
+
+print(best_fitness)
