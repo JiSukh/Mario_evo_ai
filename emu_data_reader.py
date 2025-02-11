@@ -18,7 +18,7 @@ class emu_read():
             "enemies_x3", "enemies_y1", "Block_2_13", "Block_3_9", "player_x_level", "Block_1_10",
             "enemies_x0", "Block_7_11", "enemies_y3", "Block_2_14", "Block_1_11", "Block_6_9",
             "player_y_screen", "timer", "Block_2_8", "Block_5_14", "enemies_y4", "Block_5_10",
-            "Block_5_11", "Block_4_14", "Block_2_11", "Block_1_14", "player_lives", "Block_1_12",
+            "Block_5_11", "Block_4_14", "Block_2_11", "Block_1_14", "death_flag", "Block_1_12",
             "enemy_states4", "Block_6_12", "enemy_states0", "enemies_x1", "Block_6_10", "Block_4_13",
             "layout_index", "Block_3_14", "player_x_screen", "Block_2_9", "Block_5_8", "enemies_x4",
             "Block_1_8", "Block_2_12", "enemy_states3", "Block_7_13", "Block_7_9", "enemies_x2",
@@ -28,11 +28,11 @@ class emu_read():
             "Block_7_14", "Block_3_10", "Block_5_13", "Block_6_13", "Block_7_12", "Block_4_8",
             "Block_5_12", "Block_6_14", "world", "enemies_y2", "enemies_y0", "level", "player_horizontal_speed",
             "Block_3_13", "player_vertical_velocity", "player_float_state", "Block_1_13", "Block_7_10",
-            "x", "Block_4_9", "enemy_states1"
+            "x", "Block_4_9", "enemy_states1", "timeout"
         ]
         # Define the score keys
         score_key = [
-            "timer", "player_x_level", "level", "world", "player_lives"
+            "timer", "player_x_level", "level", "world", "death_flag", "timeout"
         ]
         
         try:

@@ -12,9 +12,9 @@ import time
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.layer1 = nn.Linear(75, 64)
-        self.layer2 = nn.Linear(64, 64)
-        self.output_layer = nn.Linear(64, 3)
+        self.layer1 = nn.Linear(75, 128)
+        self.layer2 = nn.Linear(128, 128)
+        self.output_layer = nn.Linear(128, 3)
         self.activation = nn.Sigmoid()
 
     def forward(self, x):
@@ -55,8 +55,8 @@ def fitness_function(network):
     score = {}
     fitness = 0
     
-    last_x_pos = None 
-    last_movement_time = time.time()  
+    max_pos = 0
+  
     game_thread = threading.Thread(target=run_game)
     game_thread.start()
     
@@ -68,29 +68,21 @@ def fitness_function(network):
             outputs = network(in_tensor)
             er.write_inputs(outputs)
             
+            max_pos = max(max_pos, score['player_x_level'])
             
-            fitness = (timer_w*score['timer']) + (pos_bias*score['player_x_level']) + (level_bias*score['level']) + (world_bias*score['world'])
-            
-
-            
-            current_x_pos = score['player_x_level']
-            if last_x_pos is None or current_x_pos <= last_x_pos:
-                last_movement_time = time.time()  # Update based on in-game timer
-                last_x_pos = current_x_pos
-
-            # Penalty if player stuck
-            if time.time() - last_movement_time > 1:  # Adjust threshold if needed
-                fitness -= 500 
-                break         
+            fitness = max(fitness, (timer_w*score['timer']) + (pos_bias*score['player_x_level']) + (level_bias*score['level']) + (world_bias*score['world']))
 
             
         time.sleep(0.02)
     if score:
-        if score["player_lives"] < 2:
+        if score["death_flag"] == 1:
+            print("death")
+            fitness -= 700
+        if score["timeout"] == 1:
+            print("time")
             fitness -= 500
-            
-        print(f"Fitness: {fitness/20} - Position: {score['player_x_level']}")
-    return fitness/20
+        print(f"Fitness: {fitness} - Position: {max_pos}")
+    return fitness/5
 
 
 
@@ -114,7 +106,7 @@ def mutate(child, mutation_rate=0.1):
 def select_parents(population, fitness_scores, num_parents):
     parents = []
     for _ in range(num_parents):
-        tournament = random.sample(list(zip(population, fitness_scores)), 10)  # Sample 5 networks
+        tournament = random.sample(list(zip(population, fitness_scores)), 4)  # Sample 5 networks
         tournament.sort(key=lambda x: x[1], reverse=True)  # Sort by fitness
         parents.append(tournament[0][0])  # Select the best
     return parents
