@@ -11,11 +11,8 @@ local TILE_COUNT = TILE_END - TILE_START + 1  -- Number of tiles in memory
 local mario_x
 local mario_y
 
-local enemies = {}
-local near_tiles = {}
-
-
 local last_tiles = {}
+local near_tiles = {}
 
 
 function update_near_tiles(tile_x, tile_y)
@@ -24,6 +21,12 @@ function update_near_tiles(tile_x, tile_y)
     
     local WORLD_WIDTH = 32  -- The world wraps at 32 tiles
 
+    -- Function to compute the shortest wrapped distance
+    local function wrapped_distance(x1, x2, wrap_size)
+        local direct = math.abs(x1 - x2)
+        local wrapped = wrap_size - direct
+        return math.min(direct, wrapped)
+    end
     
     --remove old keys
     for key, _ in pairs(near_tiles) do
@@ -129,11 +132,11 @@ function draw_near_tiles()
 end
 
 function draw_enemies()
+	local enemies = {}
     for i = 0, 5 do
     	local screen_index = emu.read(0x006E + i, emu.memType.nesMemory, false)
         local enemy_x = emu.read(0x0087 + i, emu.memType.nesMemory, false)
         local enemy_y = emu.read(0x00CF + i, emu.memType.nesMemory, false)
-        local enemy_type = emu.read(0x0016 + i, emu.memType.nesMemory, false)
         local global_enemy_x = (screen_index * 256) + enemy_x
 
 	    local tile_x = global_enemy_x / TILE_SIZE 
@@ -142,77 +145,12 @@ function draw_enemies()
 	    tile_x = (tile_x % 64) / 2 -- Wrap around within the 32-tile width
     	tile_y = (tile_y) / 2
 		
+		
 		if tile_x < mario_x + 7 and tile_x > mario_x -1 then
 			emu.drawRectangle(tile_x*TILE_SIZE, tile_y*TILE_SIZE-4, TILE_SIZE, -TILE_SIZE, 0xFF0000, false, 1)  -- Red enemy
-			
-			enemies[i] = {x =tile_x, y = tile_y, enemy_type= enemy_type}
     	end
     end
 end
-
---socket
-local socket = require("socket.core")
-local host = "127.0.0.1"
-local port = 5000
-local client = socket.tcp()
-local is_connected = false  --
-
-function client_connect()
-    if is_connected then return end  -- Prevent duplicate connections
-    local success, err = client:connect(host, port)
-    if not success then
-        emu.displayMessage("Connection Error", err)
-        return
-    end
-    if success then
-        client:settimeout(5)  -- Set timeout
-        is_connected = true  -- Mark as connected
-    end
-end
-
-function flatten_table(t, prefix)
-    local result = {}
-    prefix = prefix or ""
-
-    for k, v in pairs(t) do
-        local key = prefix .. tostring(k)
-        if type(v) == "table" then
-            local nested = flatten_table(v, key .. "_")
-            for _, nv in ipairs(nested) do
-                table.insert(result, nv)
-            end
-        else
-            table.insert(result, key .. "=" .. tostring(v))
-        end
-    end
-
-    return result
-end
-
-function gather_information()
-    local data = {
-        --mario_x = mario_x,
-        --mario_y = mario_y,
-        --enemies = enemies,
-        t = near_tiles
-    }
-    return table.concat(flatten_table(data), ", ")
-end
-
-
-
-function send_data()
-	local data = gather_information()
-	client:send(data)
-end
-
-function receive_data()
-    local response, err = client:receive()
-    if response then
-	       emu.displayMessage("Received Data", response)
-    end
-end
-
 
 
 
@@ -228,17 +166,8 @@ end
 --]]
 --emu.addEventCallback(draw_last_tiles, emu.eventType.endFrame)
 
---Sockets stuff
-emu.addEventCallback(client_connect, emu.eventType.endFrame)
-emu.addEventCallback(function()
-    send_data()
-    --receive_data()
-end, emu.eventType.endFrame)
-
-
---memory read
+--Read memory when tiles are written into RAM
 emu.addMemoryCallback(update_tiles, emu.callbackType.write, TILE_START, TILE_END)
-
 
 emu.addEventCallback(draw_mario, emu.eventType.endFrame)
 emu.addEventCallback(draw_near_tiles, emu.eventType.endFrame)
