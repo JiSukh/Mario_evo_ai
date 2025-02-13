@@ -4,9 +4,6 @@ local TILE_END = 0x069F
 local TILE_SIZE = 8
 local TILE_MID_Y = 0x05D0
 local SCREEN_WIDTH_TILES = 16
-local SCREEN_HEIGHT_TILES = 13-- memory is 32x13 (2 stacks of 16x13 memory)
-local TILE_COUNT = TILE_END - TILE_START + 1  -- Number of tiles in memory
-
 
 local mario_x
 local mario_y
@@ -20,13 +17,6 @@ function update_near_tiles(tile_x, tile_y)
     local mario_y = math.floor(tile_y)
     
     local WORLD_WIDTH = 32  -- The world wraps at 32 tiles
-
-    -- Function to compute the shortest wrapped distance
-    local function wrapped_distance(x1, x2, wrap_size)
-        local direct = math.abs(x1 - x2)
-        local wrapped = wrap_size - direct
-        return math.min(direct, wrapped)
-    end
     
     --remove old keys
     for key, _ in pairs(near_tiles) do
@@ -40,26 +30,33 @@ function update_near_tiles(tile_x, tile_y)
 
     end
     
-	--check in area around mario
+    local grid_width = 9  -- Number of tiles in X direction
+    local grid_height = 12  -- Number of tiles in Y direction
+    
     for dx = -1, 7, 1 do
         for dy = -7, 4, 1 do
-            local tile_check_x = (mario_x + dx) % WORLD_WIDTH  -- Ensure wrapping
-            local tile_check_y = 8 + dy  -- Y does not wrap
-
-            -- Ensure tile_check_x is always positive (Lua's % can be negative for negative numbers)
+            -- Convert to a fixed grid (always from 0,0 to x,y)
+            local grid_x = dx + 1  -- Ensure 0-based index
+            local grid_y = dy + 7  -- Ensure 0-based index
+    
+            -- World coordinate check
+            local tile_check_x = (mario_x + dx) % WORLD_WIDTH  -- Wrapping X
+            local tile_check_y = 8 + dy  -- No wrapping for Y
+    
+            -- Ensure tile_check_x is always positive
             if tile_check_x < 0 then
                 tile_check_x = tile_check_x + WORLD_WIDTH
             end
-            
-            
-            local key = tile_check_x .. "_" .. tile_check_y
-
-			if last_tiles[key] then
-                near_tiles[key] = last_tiles[key]
+    
+            -- Use grid_x and grid_y as the fixed key (instead of world coordinates)
+            local key = dx+1 .. "_" .. dy+7
+            local old_key = tile_check_x .. "_" .. tile_check_y
+    
+            if last_tiles[old_key] then
+                near_tiles[key] = {x = dx+1, y = dy+7, value = last_tiles[old_key].value}
+                --emu.drawRectangle(near_tiles[key].x * TILE_SIZE, near_tiles[key].y * TILE_SIZE, TILE_SIZE, TILE_SIZE, 0x0000FF, true, 1)
             end
 
-			--draw Area check
-			--emu.drawRectangle(tile_check_x*TILE_SIZE, tile_check_y*TILE_SIZE, TILE_SIZE, TILE_SIZE, 0x0000FF, true, 1)
         end
     end
     
@@ -70,7 +67,6 @@ function update_tiles(address, value)
     local tile_index = 0
     local tile_y = 0
     local tile_x = 0
-    local offset = 0
 
     -- x/y offsets, dealing with memory space
     if address > TILE_MID_Y then
@@ -132,23 +128,34 @@ function draw_near_tiles()
 end
 
 function draw_enemies()
-	local enemies = {}
+    local mario_tile_x = math.floor(mario_x)
+    local mario_tile_y = math.floor(mario_y)
+
     for i = 0, 5 do
-    	local screen_index = emu.read(0x006E + i, emu.memType.nesMemory, false)
+        local screen_index = emu.read(0x006E + i, emu.memType.nesMemory, false)
         local enemy_x = emu.read(0x0087 + i, emu.memType.nesMemory, false)
         local enemy_y = emu.read(0x00CF + i, emu.memType.nesMemory, false)
         local global_enemy_x = (screen_index * 256) + enemy_x
 
-	    local tile_x = global_enemy_x / TILE_SIZE 
-    	local tile_y = enemy_y / TILE_SIZE
+        -- Convert to tile coordinates
+        local tile_x = math.floor(global_enemy_x / TILE_SIZE)
+        local tile_y = math.floor(enemy_y / TILE_SIZE)
 
-	    tile_x = (tile_x % 64) / 2 -- Wrap around within the 32-tile width
-    	tile_y = (tile_y) / 2
-		
-		
-		if tile_x < mario_x + 7 and tile_x > mario_x -1 then
-			emu.drawRectangle(tile_x*TILE_SIZE, tile_y*TILE_SIZE-4, TILE_SIZE, -TILE_SIZE, 0xFF0000, false, 1)  -- Red enemy
-    	end
+        -- Wrap X position within world width
+        tile_x = tile_x % 32
+
+        if tile_x < 0 then
+            tile_x = tile_x + 32
+        end
+
+        -- Convert enemy position to **static grid coordinates** relative to Mario
+        local grid_x = (tile_x - mario_tile_x) + 1  -- Keep it within the same system as near_tiles
+        local grid_y = (tile_y - mario_tile_y) + 7
+
+
+        emu.drawRectangle(grid_x * TILE_SIZE, grid_y * TILE_SIZE, TILE_SIZE, TILE_SIZE, 0xFF0000, false, 1)  -- Red enemy
+        emu.drawString(10,10,tile_x)
+        emu.drawString(10,20,tile_y)
     end
 end
 
