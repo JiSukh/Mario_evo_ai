@@ -1,37 +1,23 @@
 import socket
+from data_handler import DataHandler
 
-HOST = "127.0.0.1"  # Listen on all interfaces
-PORT = 5000       # Must match the port in Lua script
+HOST = "127.0.0.1"
+PORT = 5000
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, PORT))
-server.listen(1)
-
-print(f"Listening on {HOST}:{PORT}...")
-
-conn, addr = server.accept()
-print(f"Connected by {addr}")
+# Create a UDP socket
+udp_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_server.bind((HOST, PORT))
 
 while True:
     try:
-        data = conn.recv(50240).decode("utf-8")
-        if not data:
-            pass
-        print("Received from Lua:", data)
+        data, addr = udp_server.recvfrom(10240)  # Receive up to 1024 bytes
+        mario, tiles, enemies, score = DataHandler.parse_game_data(data.decode())
+        flattened_data = DataHandler.flatten_game_data(mario,tiles,enemies)
+        flattened_score = DataHandler.flatten_score(score)
         
-        # Send a response
-        response = f"ACK: {data}"
-        conn.sendall(response.encode("utf-8"))
-
-
+        response = f"Message received: {data.decode()}"
+        udp_server.sendto(response.encode(), addr)
     except KeyboardInterrupt:
-        break
-    except TimeoutError as e:
-        print("Timeout error: ", e)
-        break
-    except Exception as e:
-        print("Error:", e)
+        print('Server end')
         break
 
-conn.close()
-server.close()
