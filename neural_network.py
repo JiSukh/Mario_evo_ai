@@ -89,37 +89,27 @@ import time
 def fitness_function(score, fitness):
     global previous_position, no_movement_timer
     
-    # Initialize previous_position if it's None
     if previous_position is None:
         previous_position = score[0]
-
-    # Check if Mario has moved significantly, otherwise increment the no-movement timer
-    if abs(score[0] - previous_position) <= 1:
-        no_movement_timer += 1  # Mario hasn't moved significantly, increase timer
+        
+        
+            # Check if Mario has moved significantly, otherwise increment the no-movement timer
+    if abs(score[0] - previous_position) > 1:
+        return fitness + (no_movement_timer * -5) # Return penalty based on no movement timer
     else:
-        no_movement_timer = 0  # Reset the timer when Mario moves
+        no_movement_timer = 0  # Reset timer if Mario moved
 
-    # Update the previous position
     previous_position = score[0]
 
-    # Apply penalty for staying in the same position for too long
+    # Penalty for staying in the same position for too long
     if no_movement_timer > 15:
-        fitness -= 300  # Larger penalty for being stationary too long
-
-    # Stop conditions: didn't move for too long, or other game state issues
-    if score[1] < 390 and score[0] <= 5:  # Timer is very low and Mario hasn't moved
-        fitness -= 1000
-    elif score[2] < 2:  # Low score condition (example)
-        fitness -= 5000
+        return fitness -300
     
-    # Reward movement and progress in the game
-    fitness += (score[0] * 2) + score[1]  # Reward for distance and timer progress
-
-    # Apply movement penalty based on no movement time (scaled by a factor)
-    fitness -= no_movement_timer * 5  # Apply a penalty over time
-
-    return fitness
-
+    if score[1] < 390 and score[0] <= 5: #didn't move for too long
+        return fitness -1000
+    elif score[2] < 2:
+        return fitness -5000
+    return fitness + (score[0] * 2) + score[1]
     
 
 
