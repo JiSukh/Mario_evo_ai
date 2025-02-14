@@ -22,11 +22,18 @@ def stop_emulator(emulator_process):
     emulator_process.terminate()
     emulator_process.wait()
 
+
+FITNESS_TIMEOUT = 10
+
+previous_position = None
+no_movement_timer = 0
+
 def eval_genome(genome, config):
     neural_net = neat.nn.FeedForwardNetwork.create(genome, config)
 
     fitness = 0
-
+    start_time = time.time()
+    no_movement_timer = 0
     try:
         #start server
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -60,51 +67,60 @@ def eval_genome(genome, config):
                 action_str = ",".join([f"{value}" for value in output])
 
                 sock.sendto(action_str.encode(), addr)
-                fitness = fitness_function(flattened_score)
+                fitness = fitness_function(flattened_score, fitness)
+                
+                if time.time() - start_time > FITNESS_TIMEOUT:
+                    break  
                 # Check for game over condition, assuming the server sends it in the data
                 if fitness < 0:
-                    print("failed with fitness:", fitness)
-                    break  # Exit the loop if game over
+                    break  
 
     except socket.timeout:
         fitness = -100  
 
     genome.fitness = fitness  
-
+    print(fitness)
     stop_emulator(emulator_process)
+    time.sleep(1)
 
 
-previous_position = None
-no_movement_timer = 0 
+import time
 
-def fitness_function(score):
+def fitness_function(score, fitness):
     global previous_position, no_movement_timer
     
+    # Initialize previous_position if it's None
     if previous_position is None:
         previous_position = score[0]
-        
-    #if only bigger by one or smaller by -1 (standing still)
-    if score[0] >= previous_position + 1 or score[0] <= previous_position -1:
-        no_movement_timer += 1  # Increment the no movement timer
-    else:
-        no_movement_timer = 0  # Reset timer if Mario moved
-        
-    if no_movement_timer > 120:
-        return -500
-    
-    previous_position = score[0]
-    
-    #stop conditions
-    if score[1] < 390 and score[0] <= 5: #didn't move for too long
-        print(score[1])
-        print(score[0])
-        return -500
-    if score[2] < 2:
-        return -500
 
-    score = (score[0] * 2) + score[1]
+    # Check if Mario has moved significantly, otherwise increment the no-movement timer
+    if abs(score[0] - previous_position) <= 1:
+        no_movement_timer += 1  # Mario hasn't moved significantly, increase timer
+    else:
+        no_movement_timer = 0  # Reset the timer when Mario moves
+
+    # Update the previous position
+    previous_position = score[0]
+
+    # Apply penalty for staying in the same position for too long
+    if no_movement_timer > 15:
+        fitness -= 300  # Larger penalty for being stationary too long
+
+    # Stop conditions: didn't move for too long, or other game state issues
+    if score[1] < 390 and score[0] <= 5:  # Timer is very low and Mario hasn't moved
+        fitness -= 1000
+    elif score[2] < 2:  # Low score condition (example)
+        fitness -= 5000
     
-    return score
+    # Reward movement and progress in the game
+    fitness += (score[0] * 2) + score[1]  # Reward for distance and timer progress
+
+    # Apply movement penalty based on no movement time (scaled by a factor)
+    fitness -= no_movement_timer * 5  # Apply a penalty over time
+
+    return fitness
+
+    
 
 
 
