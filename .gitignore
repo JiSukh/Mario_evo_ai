@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+#hello# Additional project-specific ignores
+.conda/
+data.*
+game/
+Mesen.exe
 
 # C extensions
 *.so
